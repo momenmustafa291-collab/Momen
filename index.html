@@ -699,6 +699,7 @@
                 <option value="furniture">🪑 Furniture</option>
                 <option value="marble">🪨 Marble</option>
             </select>
+            <input type="file" id="prodImage" accept="image/*" onchange="handleImageUpload(event)" style="padding:8px;background:white;border-radius:5px;">
             <button class="btn btn-success" onclick="addProduct()">Add</button>
         </div>
         <div class="admin-form">
@@ -1173,6 +1174,96 @@
                 notif.style.display = 'none';
             }, 3000);
         }
+
+        
+
+        // ====== Image Upload Functions ======
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                showNotification('❌ Image too large! Max 2MB');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                window.uploadedImageData = e.target.result;
+                showNotification('✅ Image uploaded successfully!');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Override addProduct to include image
+        const originalAddProduct = addProduct;
+        addProduct = function() {
+            const name = document.getElementById('prodName').value;
+            const price = parseFloat(document.getElementById('prodPrice').value);
+            const category = document.getElementById('prodCategory').value;
+            const desc = document.getElementById('prodDesc').value || `Premium ${category} product with high quality`;
+
+            const image = window.uploadedImageData || (category === 'furniture' 
+                ? ['🛋️','🪑','🛏️','🚪','📚','🪴'][Math.floor(Math.random()*6)]
+                : ['🪨','⬛','🟫','⬜','🟨'][Math.floor(Math.random()*5)]);
+
+            if (!name || !price) {
+                showNotification('❌ Please enter name and price');
+                return;
+            }
+
+            products.push({ id: nextId++, name, price, category, image, desc });
+            renderProducts();
+
+            document.getElementById('prodName').value = '';
+            document.getElementById('prodPrice').value = '';
+            document.getElementById('prodDesc').value = '';
+            window.uploadedImageData = null;
+
+            showNotification('✅ Product added successfully!');
+        };
+
+        // Override renderProducts to show images
+        const originalRenderProducts = renderProducts;
+        renderProducts = function() {
+            showProgress();
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = '';
+
+            const filtered = currentFilter === 'all' 
+                ? products 
+                : products.filter(p => p.category === currentFilter);
+
+            filtered.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card' + (isAdmin ? ' admin-mode' : '');
+
+                const isImage = product.image && product.image.startsWith('data:image');
+                const imageHtml = isImage 
+                    ? `<img src="${product.image}" style="width:100%;height:240px;object-fit:cover;">`
+                    : `<div class="product-image">${product.image}</div>`;
+
+                card.innerHTML = `
+                    <button class="delete-btn" onclick="deleteProduct(${product.id})">×</button>
+                    ${imageHtml}
+                    <div class="product-info">
+                        <span class="product-category">${product.category === 'furniture' ? '🪑 Furniture' : '🪨 Marble'}</span>
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-price">${product.price.toLocaleString()} ₪</div>
+                        <div class="product-desc">${product.desc}</div>
+                        <div class="product-actions">
+                            <button class="add-to-cart" onclick="addToCart(${product.id})">
+                                🛒 Add to Cart
+                            </button>
+                            <button class="whatsapp-btn" onclick="contactWhatsApp('${product.name}')" title="WhatsApp Inquiry">
+                                💬
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        };
 
         // ====== Initial Render ======
         renderProducts();
